@@ -1,0 +1,74 @@
+version: "3.8"
+
+services:
+  consul:
+    container_name: consul
+    image: consul:${CONSUL_VERSION}
+    env_file:
+      - ./consul/.env
+    ports:
+      - "8500:8500"
+      - "8300:8300"
+      - "8301:8301"
+      - "8302:8302"
+      - "8600:8600"
+    restart: always
+
+  mysql:
+    container_name: mysql
+    image: mysql:${MYSQL_VERSION}
+    build:
+      context: ./mysql
+    env_file:
+      - ./mysql/.env
+    volumes:
+      - ./var/log/mysql:/var/log/mysql
+      - ./var/lib/mysql:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  redis:
+    container_name: redis
+    build: ./redis
+    volumes:
+      - ./var/data/redis:/data/redis
+    ports:
+      - "6379:6379"
+
+  kafka:
+    container_name: kafka
+    image: 'bitnami/kafka:latest'
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper
+    restart: always
+    hostname: zookeeper
+    ports:
+      - 2181:2181
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zookeeper:2888:3888;2181
+
+  nginx:
+    container_name: nginx
+    build:
+      context: ./nginx
+    volumes:
+      - ${PHP_WWW_PATH}:/var/www/:cached
+      - ./nginx/sites/:/etc/nginx/sites-available/
+      - ./var/log/nginx/:/var/log/nignx/
+#    depends_on:
+#      - php56-fpm
+#      - php74-fpm
+#      - php81-fpm
+    ports:
+      - "80:80"
